@@ -1,0 +1,45 @@
+[package]
+name = "github-action-builder"
+version = "0.1.0"
+edition = "2021"
+description = "Android app to trigger and monitor GitHub Actions from mobile"
+
+[lib]
+name = "github_action_builder"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[[bin]]
+name = "desktop_test"
+path = "src/main.rs"
+
+[dependencies]
+# GUI for mobile
+egui = "0.24"
+eframe = { version = "0.24", default-features = false, features = ["egui_glow"] }
+
+# GitHub API integration
+octocrab = "0.18"
+reqwest = { version = "0.11", features = ["json"] }
+
+# Android runtime
+android-activity = "0.4"
+
+# Async support
+tokio = { version = "1.0", features = ["full"] }
+
+# Data handling
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Utilities
+anyhow = "1.0"
+log = "0.4"
+
+[target.'cfg(target_os = "android")'.dependencies]
+android-logger = "0.13"
+
+[package.metadata.android]
+target_sdk_version = 31
+min_sdk_version = 21
