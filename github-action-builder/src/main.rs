@@ -1,53 +1,51 @@
-//! Desktop test version of GitHub Action Builder
 use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([400.0, 600.0])
-            .with_title("GitHub Action Builder - Desktop Test"),
+            .with_inner_size([420.0, 680.0])
+            .with_title("Actions监控 - 桌面测试"),
         ..Default::default()
     };
-    
+
     eframe::run_native(
-        "GitHub Action Builder",
+        "Actions监控",
         options,
-        Box::new(|cc| Box::new(GitHubActionApp::new(cc))),
+        Box::new(|_cc| Box::new(App::默认())),
     )
 }
 
-struct GitHubActionApp {
-    projects: Vec<String>,
+struct App {
+    关键字: String,
+    日志示例: Vec<String>,
 }
 
-impl GitHubActionApp {
-    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+impl App {
+    fn 默认() -> Self {
         Self {
-            projects: vec!["my-repo".to_string(), "another-project".to_string()],
+            关键字: String::new(),
+            日志示例: vec![
+                "INFO: 构建开始".to_string(),
+                "WARN: 依赖下载缓慢".to_string(),
+                "ERROR: 单元测试失败".to_string(),
+            ],
         }
     }
 }
 
-impl eframe::App for GitHubActionApp {
+impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("🚀 GitHub Action Builder");
-            ui.label("Manage your GitHub Actions from mobile");
-            
+            ui.heading("GitHub Actions 日志过滤（示例）");
+            ui.horizontal(|ui| {
+                ui.label("关键字：");
+                ui.text_edit_singleline(&mut self.关键字);
+            });
             ui.separator();
-            
-            ui.heading("Your Projects:");
-            for project in &self.projects {
-                ui.horizontal(|ui| {
-                    ui.label(project);
-                    if ui.button("Trigger Build").clicked() {
-                        println!("Would trigger build for: {}", project);
-                    }
-                });
-            }
-            
-            if ui.button("Add Project").clicked() {
-                self.projects.push("new-project".to_string());
+            for 行 in self.日志示例.iter().filter(|s| {
+                if self.关键字.is_empty() { true } else { s.contains(&self.关键字) }
+            }) {
+                ui.label(行);
             }
         });
     }

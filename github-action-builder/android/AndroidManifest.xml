@@ -1,0 +1,21 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.sheep.github_action_builder">
+
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="31" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application android:label="Actions监控" android:theme="@android:style/Theme.DeviceDefault">
+        <activity
+            android:name="android.app.NativeActivity"
+            android:label="Actions监控"
+            android:configChanges="orientation|keyboardHidden|screenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:launchMode="singleTask"
+            android:exported="true">
+            <meta-data android:name="android.app.lib_name" android:value="github_action_builder" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

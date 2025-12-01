@@ -1,28 +1,50 @@
 use android_activity::{AndroidApp, MainEvent};
-use log::info;
+use log::{info, warn, error};
+use std::time::Duration;
 
 #[no_mangle]
-fn android_main(app: AndroidApp) {
+pub extern "C" fn android_main(app: AndroidApp) {
     android_logger::init_once(
-        android_logger::Config::default().with_max_level(log::LevelFilter::Info)
+        android_logger::Config::default().with_max_level(log::LevelFilter::Info),
     );
 
-    info!("🚀 GitHub Action Builder Started");
+    info!("应用启动：GitHub Actions 监控（纯 Rust）");
 
-    let mut should_run = true;
-    
-    while should_run {
-        app.poll_events(Some(std::time::Duration::from_millis(16)), |event| {
+    let mut 运行中 = true;
+
+    let rt = tokio::runtime::Runtime::new().expect("Tokio 运行时创建失败");
+    rt.spawn(async {
+        if let Err(e) = 后台轮询任务().await {
+            error!("后台轮询任务出错：{e:?}");
+        }
+    });
+
+    while 运行中 {
+        app.poll_events(Some(Duration::from_millis(16)), |event| {
             match event {
-                MainEvent::Resume => {
-                    info!("App resumed - ready to manage GitHub Actions");
-                }
+                MainEvent::Resume => info!("应用恢复"),
+                MainEvent::Pause => info!("应用暂停"),
                 MainEvent::Destroy => {
-                    info!("App destroyed");
-                    should_run = false;
+                    warn!("应用销毁");
+                    运行中 = false;
                 }
                 _ => {}
             }
         });
     }
 }
+
+async fn 后台轮询任务() -> anyhow::Result<()> {
+    use tokio::time::sleep;
+
+    let token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
+    let octo = if !token.is_empty() {
+        octocrab::Octocrab::builder().personal_token(token).build()?
+    } else {
+        octocrab::Octocrab::builder().build()?
+    };
+
+    let owner = std::env::var("GITHUB_OWNER").unwrap_or_else(|_| "SleepSheepQwQ".to_string());
+    let repo = std::env::var("GITHUB_REPO").unwrap_or_else(|_| "MyTset".to_string());
+
+    loop {
