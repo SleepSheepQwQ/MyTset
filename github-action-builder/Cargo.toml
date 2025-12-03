@@ -32,9 +32,11 @@ egui = "0.24"
 eframe = { version = "0.24", default-features = false, features = ["egui_glow"] }
 
 [package.metadata.android]
-package_name = "com.sheep.github_action_builder"
+package = "com.sheep.github_action_builder"
 label = "Actions监控"
-uses_permission = ["android.permission.INTERNET"]
 min_sdk_version = 21
 target_sdk_version = 31
 manifest = "android/AndroidManifest.xml"
+
+[[package.metadata.android.permissions]]
+name = "android.permission.INTERNET"
