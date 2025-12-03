@@ -1,4 +1,4 @@
-name: Build Android APK (Pure Rust)
+name: Build Android APK (Pure Rust) v2
 
 on:
   push:
@@ -30,8 +30,9 @@ jobs:
 
       - name: Install Rust Android targets
         run: |
+          set -eux
           rustup target add aarch64-linux-android
-          # 可选多 ABI：
+          # 可选：
           # rustup target add armv7-linux-androideabi
           # rustup target add x86_64-linux-android
 
@@ -54,7 +55,7 @@ jobs:
           echo "ANDROID_HOME=${ANDROID_HOME}" >> $GITHUB_ENV
           echo "${ANDROID_HOME}/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
-      - name: Accept licenses and install required SDK/NDK
+      - name: Accept licenses and install required SDK/NDK platforms
         run: |
           set -eux
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
@@ -72,9 +73,29 @@ jobs:
           echo "${ANDROID_HOME}/build-tools/33.0.2" >> $GITHUB_PATH
           echo "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
 
-      - name: List installed SDKs (sanity check)
+      - name: Print SDK layout for diagnostics
         run: |
-          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list | sed -n '1,200p'
+          set -eux
+          echo "ANDROID_HOME=${ANDROID_HOME}"
+          echo "ANDROID_NDK_HOME=${ANDROID_NDK_HOME}"
+          ls -la "${ANDROID_HOME}"
+          ls -la "${ANDROID_HOME}/platforms" || true
+          ls -la "${ANDROID_HOME}/build-tools" || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list | sed -n '1,200p' || true
+
+      - name: Assert required platforms exist (fail early if missing)
+        run: |
+          set -eux
+          for plat in android-21 android-30 android-31 android-33; do
+            if [ ! -d "${ANDROID_HOME}/platforms/${plat}" ]; then
+              echo "Missing platform: ${plat}"
+              exit 1
+            fi
+          done
+          if [ ! -d "${ANDROID_HOME}/build-tools/33.0.2" ]; then
+            echo "Missing build-tools 33.0.2"
+            exit 1
+          fi
 
       - name: Cache cargo bin
         uses: actions/cache@v4
