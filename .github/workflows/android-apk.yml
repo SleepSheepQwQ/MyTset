@@ -1,51 +1,73 @@
-name: Build Android APK
+name: Build Android APK (Pure Rust)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
-  build:
+  build-apk:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Set up Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
-        components: rustfmt, clippy
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-    - name: Install Java (required for Android SDK)
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: "17"
+      - name: Install Java (JDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
-    - name: Install Android SDK tools
-      run: |
-        sudo mkdir -p /usr/local/android-sdk/cmdline-tools
-        sudo chown $USER:$USER /usr/local/android-sdk/cmdline-tools
-        curl -s https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdline-tools.zip
-        unzip -q cmdline-tools.zip -d /usr/local/android-sdk/cmdline-tools
-        rm cmdline-tools.zip
-        echo "ANDROID_HOME=/usr/local/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=/usr/local/android-sdk" >> $GITHUB_ENV
-        echo "/usr/local/android-sdk/cmdline-tools/bin" >> $GITHUB_PATH
+      - name: Install Android SDK commandline-tools
+        run: |
+          set -eux
+          export ANDROID_HOME=/usr/local/android-sdk
+          sudo mkdir -p "$ANDROID_HOME/cmdline-tools"
+          # 下载并解压 commandline-tools（Google 官方包）
+          curl -L -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip
+          sudo unzip -q cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools"
+          # 解压后目录名通常为 cmdline-tools，需要移动为 latest 以符合标准结构
+          sudo mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          # 导出环境变量与 PATH（关键：latest/bin）
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
-    - name: Install Android build-tools and platform-tools
-      run: |
-        yes | sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "build-tools;33.0.2" "platforms;android-33"
-        echo "$ANDROID_HOME/build-tools/33.0.2" >> $GITHUB_PATH
-        echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+      - name: Accept Android SDK licenses and install components
+        run: |
+          set -eux
+          export ANDROID_HOME="${ANDROID_HOME}"
+          # 接受许可证
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
+          # 安装 platform-tools、build-tools、platforms
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "build-tools;33.0.2" \
+            "platforms;android-33" \
+            "ndk;25.2.9519653"
+          # 将 build-tools 与 platform-tools 加入 PATH
+          echo "${ANDROID_HOME}/platform-tools" >> $GITHUB_PATH
+          echo "${ANDROID_HOME}/build-tools/33.0.2" >> $GITHUB_PATH
 
-    - name: Install cargo-apk
-      run: cargo install cargo-apk
+      - name: Install cargo-apk
+        run: cargo install cargo-apk
 
-    - name: Build APK
-      run: cargo apk build --release
+      - name: Build APK (release)
+        working-directory: github-action-builder
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          # ANDROID_SDK_ROOT 已过时，这里不再设置；cargo-apk 会使用 ANDROID_HOME
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: SleepSheepQwQ
+          GITHUB_REPO: MyTset
+        run: cargo apk build --release
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: github-action-builder/target/**/*.apk
+          if-no-files-found: warn
