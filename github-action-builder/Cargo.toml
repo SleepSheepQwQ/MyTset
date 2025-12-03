@@ -1,7 +1,7 @@
 [package]
 name = "github-action-builder"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 description = "安卓 APK：监控 GitHub Actions 状态并过滤日志（纯 Rust）"
 license = "AGPL-3.0-or-later"
 
@@ -32,11 +32,11 @@ egui = "0.24"
 eframe = { version = "0.24", default-features = false, features = ["egui_glow"] }
 
 [package.metadata.android]
+# 使用 package 字段（cargo-apk 识别）
 package = "com.sheep.github_action_builder"
 label = "Actions监控"
 min_sdk_version = 21
-target_sdk_version = 31
+target_sdk_version = 33
 manifest = "android/AndroidManifest.xml"
 
-[[package.metadata.android.permissions]]
-name = "android.permission.INTERNET"
+# 说明：权限以 Manifest 为准，这里不再重复声明 permissions，避免双重来源
