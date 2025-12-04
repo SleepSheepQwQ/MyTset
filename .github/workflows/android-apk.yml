@@ -23,6 +23,10 @@ jobs:
           api-level: 33
           build-tools: 33.0.2
 
+      - name: Install required platforms
+        run: |
+          sdkmanager "platforms;android-30" "platforms;android-31" "platforms;android-33"
+
       - name: Setup NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
