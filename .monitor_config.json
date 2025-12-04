@@ -1,3 +1,5 @@
 {
-  "excluded_dirs": []
+  "excluded_dirs": [
+    "/data/data/com.termux/files/home/test/MyTset/.git/"
+  ]
 }
