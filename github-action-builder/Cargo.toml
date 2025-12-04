@@ -11,7 +11,7 @@ android_logger = "0.13"
 log = "0.4"
 eframe = { version = "0.24", default-features = false, features = ["glow"] }
 egui = "0.24"
-android-activity = { version = "0.6", features = ["native-activity"] }
+android-activity = { version = "0.6.0", features = ["native-activity"] }
 
 [lib]
 crate-type = ["cdylib"]
