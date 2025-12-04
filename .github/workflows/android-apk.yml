@@ -67,12 +67,12 @@ jobs:
           restore-keys: |
             cargo-${{ runner.os }}
 
-      - name: Install cargo-apk if missing (pinned)
+      - name: Install cargo-apk if missing
         run: |
           if ! cargo apk --help >/dev/null 2>&1; then
             cargo install cargo-apk --version 0.9.7
           fi
-          cargo apk --version
+          cargo apk version
 
       - name: Build APK (release)
         working-directory: github-action-builder
