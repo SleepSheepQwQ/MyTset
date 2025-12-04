@@ -1,4 +1,4 @@
-name: Build Android APK (Pure Rust) v4
+name: Build Android APK (Pure Rust) v5
 
 on:
   push:
@@ -70,7 +70,6 @@ jobs:
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update || true
 
-          # 逐项安装并重试，覆盖 30–34 平台与最新 NDK
           for pkg in \
             "platform-tools" \
             "build-tools;33.0.2" \
@@ -82,8 +81,7 @@ jobs:
             "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "$pkg" || (sleep 5 && "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "$pkg")
           done
 
-          # 解析最新 NDK 路径
-          NDK_DIR="$(ls -1 ${ANDROID_HOME}/ndk | head -n1 || true)"
+          NDK_DIR="$(ls -1 "${ANDROID_HOME}/ndk" | sort -Vr | head -n1 || true)"
           if [ -z "${NDK_DIR}" ]; then
             echo "NDK not found after installation."
             exit 1
@@ -102,7 +100,6 @@ jobs:
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed | grep -q "platforms;android-31"
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed | grep -q "platforms;android-33"
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed | grep -q "platforms;android-34"
-          # 验证 NDK 路径存在
           test -d "${ANDROID_NDK_HOME}"
 
       - name: Diagnostics: print SDK layout
@@ -145,13 +142,14 @@ jobs:
           set -eux
           cargo --locked apk build --release
 
-      - name: Locate APKs
+      - name: Stage APKs for upload
         working-directory: github-action-builder
         run: |
           set -eux
-          echo "Searching for APKs under $(pwd)/target ..."
-          find target -type f -name "*.apk" -print | tee apk_paths.txt
-          if [ ! -s apk_paths.txt ]; then
+          mkdir -p apk_out
+          find target -type f -name "*.apk" -print -exec cp {} apk_out/ \;
+          ls -la apk_out
+          if [ -z "$(ls -A apk_out)" ]; then
             echo "No APKs found after build."
             exit 1
           fi
@@ -159,12 +157,6 @@ jobs:
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: github-action-builder/apk_paths.txt
-      - name: Upload discovered APK files
-        uses: actions/upload-artifact@v4
-        with:
           name: android-apk-files
-          path: |
-            github-action-builder/$(cat github-action-builder/apk_paths.txt | tr '\n' '\n')
+          path: github-action-builder/apk_out
           if-no-files-found: error
