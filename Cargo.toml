@@ -2,5 +2,5 @@
 members = ["github-action-builder"]
 resolver = "2"
 
-[workspace.package]
-edition = "2021"
+[patch.crates-io]
+android-activity = { version = "0.6.0", features = ["native-activity"] }
