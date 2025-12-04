@@ -1,4 +1,4 @@
-name: Build Android APK (Pure Rust) v5
+name: Build Android APK (Pure Rust) v6
 
 on:
   push:
@@ -59,7 +59,6 @@ jobs:
           sudo unzip -q cmdline-tools.zip -d "${ANDROID_HOME}/cmdline-tools"
           sudo mv "${ANDROID_HOME}/cmdline-tools/cmdline-tools" "${ANDROID_HOME}/cmdline-tools/latest"
           rm -f cmdline-tools.zip
-
           echo "ANDROID_HOME=${ANDROID_HOME}" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=${ANDROID_HOME}" >> $GITHUB_ENV
           echo "${ANDROID_HOME}/cmdline-tools/latest/bin" >> $GITHUB_PATH
@@ -69,7 +68,6 @@ jobs:
           set -eux
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update || true
-
           for pkg in \
             "platform-tools" \
             "build-tools;33.0.2" \
@@ -80,7 +78,6 @@ jobs:
             "ndk;latest"; do
             "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "$pkg" || (sleep 5 && "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "$pkg")
           done
-
           NDK_DIR="$(ls -1 "${ANDROID_HOME}/ndk" | sort -Vr | head -n1 || true)"
           if [ -z "${NDK_DIR}" ]; then
             echo "NDK not found after installation."
