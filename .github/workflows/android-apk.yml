@@ -61,7 +61,6 @@ jobs:
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update || true
 
-          # 逐项安装并带重试，确保真实落盘
           for pkg in \
             "platform-tools" \
             "build-tools;33.0.2" \
