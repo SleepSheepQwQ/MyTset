@@ -1,4 +1,4 @@
-name: Build Android APK (Pure Rust) v2
+name: Build Android APK (Pure Rust) v3
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
         run: |
           set -eux
           rustup target add aarch64-linux-android
-          # 可选：
+          # 可选多 ABI：
           # rustup target add armv7-linux-androideabi
           # rustup target add x86_64-linux-android
 
@@ -55,47 +55,45 @@ jobs:
           echo "ANDROID_HOME=${ANDROID_HOME}" >> $GITHUB_ENV
           echo "${ANDROID_HOME}/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
-      - name: Accept licenses and install required SDK/NDK platforms
+      - name: Accept licenses and install SDK/NDK
         run: |
           set -eux
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
-          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" \
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update || true
+
+          # 逐项安装并带重试，确保真实落盘
+          for pkg in \
             "platform-tools" \
             "build-tools;33.0.2" \
-            "platforms;android-21" \
             "platforms;android-30" \
             "platforms;android-31" \
             "platforms;android-33" \
-            "ndk;25.2.9519653"
+            "ndk;25.2.9519653"; do
+            "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "$pkg" || (sleep 5 && "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "$pkg")
+          done
 
           echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/25.2.9519653" >> $GITHUB_ENV
           echo "${ANDROID_HOME}/platform-tools" >> $GITHUB_PATH
           echo "${ANDROID_HOME}/build-tools/33.0.2" >> $GITHUB_PATH
           echo "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
 
-      - name: Print SDK layout for diagnostics
+      - name: Verify installed components (installed list)
+        run: |
+          set -eux
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed | grep -q "build-tools;33.0.2"
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed | grep -q "platforms;android-30"
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed | grep -q "platforms;android-31"
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed | grep -q "platforms;android-33"
+
+      - name: Diagnostics: print SDK layout
         run: |
           set -eux
           echo "ANDROID_HOME=${ANDROID_HOME}"
           echo "ANDROID_NDK_HOME=${ANDROID_NDK_HOME}"
-          ls -la "${ANDROID_HOME}"
+          ls -la "${ANDROID_HOME}" || true
           ls -la "${ANDROID_HOME}/platforms" || true
           ls -la "${ANDROID_HOME}/build-tools" || true
-          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list | sed -n '1,200p' || true
-
-      - name: Assert required platforms exist (fail early if missing)
-        run: |
-          set -eux
-          for plat in android-21 android-30 android-31 android-33; do
-            if [ ! -d "${ANDROID_HOME}/platforms/${plat}" ]; then
-              echo "Missing platform: ${plat}"
-              exit 1
-            fi
-          done
-          if [ ! -d "${ANDROID_HOME}/build-tools/33.0.2" ]; then
-            echo "Missing build-tools 33.0.2"
-            exit 1
-          fi
 
       - name: Cache cargo bin
         uses: actions/cache@v4
