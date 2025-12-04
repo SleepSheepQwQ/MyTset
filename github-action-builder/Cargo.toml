@@ -2,41 +2,22 @@
 name = "github-action-builder"
 version = "0.1.0"
 edition = "2021"
-description = "安卓 APK：监控 GitHub Actions 状态并过滤日志（纯 Rust）"
 license = "AGPL-3.0-or-later"
 
-[lib]
-name = "github_action_builder"
-crate-type = ["cdylib"]
-path = "src/lib.rs"
-
-[[bin]]
-name = "desktop_test"
-path = "src/main.rs"
-
 [dependencies]
-android-activity = "0.4"
+tokio = { version = "1", features = ["full"] }
+octocrab = "0.32"
 android_logger = "0.13"
 log = "0.4"
-
-tokio = { version = "1.37", features = ["rt-multi-thread", "macros", "sync", "time"] }
-reqwest = { version = "0.11", features = ["json", "gzip", "stream", "rustls-tls"] }
-octocrab = "0.18"
-
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
-anyhow = "1.0"
-
+eframe = { version = "0.24", default-features = false, features = ["glow"] }
 egui = "0.24"
-eframe = { version = "0.24", default-features = false, features = ["egui_glow"] }
+
+[lib]
+crate-type = ["cdylib"]
 
 [package.metadata.android]
-# 使用 package 字段（cargo-apk 识别）
-package = "com.sheep.github_action_builder"
-label = "Actions监控"
-min_sdk_version = 21
-target_sdk_version = 33
+package = "com.example.githubactionbuilder"
+apk_name = "github_action_builder"
 manifest = "android/AndroidManifest.xml"
-
-# 说明：权限以 Manifest 为准，这里不再重复声明 permissions，避免双重来源
+target_sdk_version = 33
+min_sdk_version = 21
