@@ -1,4 +1,4 @@
-name: Build Android APK (Pure Rust) v3
+name: Build Android APK (Pure Rust) v4
 
 on:
   push:
@@ -13,6 +13,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Verify Cargo.lock exists (fail early)
+        run: |
+          set -eux
+          if [ ! -f Cargo.lock ]; then
+            echo "Cargo.lock is missing. Run 'cargo generate-lockfile' locally and commit it."
+            exit 1
+          fi
 
       - name: Restore cargo cache
         uses: actions/cache@v4
@@ -53,6 +61,7 @@ jobs:
           rm -f cmdline-tools.zip
 
           echo "ANDROID_HOME=${ANDROID_HOME}" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=${ANDROID_HOME}" >> $GITHUB_ENV
           echo "${ANDROID_HOME}/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
       - name: Accept licenses and install SDK/NDK
@@ -61,21 +70,28 @@ jobs:
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update || true
 
-          # 逐项安装并重试，确保真实落盘
+          # 逐项安装并重试，覆盖 30–34 平台与最新 NDK
           for pkg in \
             "platform-tools" \
             "build-tools;33.0.2" \
             "platforms;android-30" \
             "platforms;android-31" \
             "platforms;android-33" \
-            "ndk;25.2.9519653"; do
+            "platforms;android-34" \
+            "ndk;latest"; do
             "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "$pkg" || (sleep 5 && "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "$pkg")
           done
 
-          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/25.2.9519653" >> $GITHUB_ENV
+          # 解析最新 NDK 路径
+          NDK_DIR="$(ls -1 ${ANDROID_HOME}/ndk | head -n1 || true)"
+          if [ -z "${NDK_DIR}" ]; then
+            echo "NDK not found after installation."
+            exit 1
+          fi
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${NDK_DIR}" >> $GITHUB_ENV
           echo "${ANDROID_HOME}/platform-tools" >> $GITHUB_PATH
           echo "${ANDROID_HOME}/build-tools/33.0.2" >> $GITHUB_PATH
-          echo "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+          echo "${ANDROID_HOME}/ndk/${NDK_DIR}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
 
       - name: Verify installed components (installed list)
         run: |
@@ -85,17 +101,22 @@ jobs:
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed | grep -q "platforms;android-30"
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed | grep -q "platforms;android-31"
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed | grep -q "platforms;android-33"
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --list --installed | grep -q "platforms;android-34"
+          # 验证 NDK 路径存在
+          test -d "${ANDROID_NDK_HOME}"
 
       - name: Diagnostics: print SDK layout
         run: |
           set -eux
           echo "ANDROID_HOME=${ANDROID_HOME}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}"
           echo "ANDROID_NDK_HOME=${ANDROID_NDK_HOME}"
           ls -la "${ANDROID_HOME}" || true
           ls -la "${ANDROID_HOME}/platforms" || true
           ls -la "${ANDROID_HOME}/build-tools" || true
+          ls -la "${ANDROID_HOME}/ndk" || true
 
-      - name: Cache cargo bin
+      - name: Cache cargo bin (including cargo-apk)
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin
@@ -103,24 +124,47 @@ jobs:
           restore-keys: |
             cargo-bin-${{ runner.os }}-
 
-      - name: Install cargo-apk
-        run: cargo install cargo-apk
+      - name: Install cargo-apk if missing
+        run: |
+          set -eux
+          if ! command -v cargo-apk >/dev/null 2>&1; then
+            cargo install cargo-apk
+          fi
+          cargo-apk --version
 
       - name: Build APK (release)
         working-directory: github-action-builder
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_OWNER: SleepSheepQwQ
           GITHUB_REPO: MyTset
-        run: cargo --locked apk build --release
+        run: |
+          set -eux
+          cargo --locked apk build --release
+
+      - name: Locate APKs
+        working-directory: github-action-builder
+        run: |
+          set -eux
+          echo "Searching for APKs under $(pwd)/target ..."
+          find target -type f -name "*.apk" -print | tee apk_paths.txt
+          if [ ! -s apk_paths.txt ]; then
+            echo "No APKs found after build."
+            exit 1
+          fi
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
+          path: github-action-builder/apk_paths.txt
+      - name: Upload discovered APK files
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-files
           path: |
-            github-action-builder/target/android-artifacts/*.apk
-            github-action-builder/target/**/apk/*.apk
-          if-no-files-found: warn
+            github-action-builder/$(cat github-action-builder/apk_paths.txt | tr '\n' '\n')
+          if-no-files-found: error
