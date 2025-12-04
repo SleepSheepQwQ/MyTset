@@ -32,8 +32,8 @@ jobs:
       - name: Export SDK/NDK paths
         run: |
           set -eux
-          echo "ANDROID_HOME=${ANDROID_SDK_ROOT}" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
           echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
 
       - name: Cache cargo bin (including cargo-apk)
@@ -47,10 +47,10 @@ jobs:
       - name: Install cargo-apk if missing
         run: |
           set -eux
-          if ! command -v cargo-apk >/dev/null 2>&1; then
+          if ! cargo apk --help >/dev/null 2>&1; then
             cargo install cargo-apk
           fi
-          cargo-apk --version
+          cargo apk --help
 
       - name: Build APK (release)
         working-directory: github-action-builder
